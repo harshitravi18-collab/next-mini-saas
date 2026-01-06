@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+body { @apply bg-gray-50 text-gray-900; }
+
+/* minimal dark mode */
+html.dark body { @apply bg-gray-950 text-gray-50; }
+html.dark .bg-white { background-color: rgb(17 24 39); }
+html.dark .border { border-color: rgb(55 65 81); }
+html.dark .text-gray-700 { color: rgb(209 213 219); }
+html.dark .text-gray-600 { color: rgb(209 213 219); }
