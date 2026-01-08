@@ -17,7 +17,7 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
       });
 
       if (!res.ok) {
@@ -37,12 +37,37 @@ export default function LoginPage() {
     <main className="mx-auto max-w-md px-6 py-16">
       <h1 className="text-2xl font-semibold">Sign in</h1>
       <form onSubmit={submit} className="mt-6 rounded-lg border bg-white p-4">
-        <label className="block text-sm font-medium" htmlFor="email">Email</label>
-        <input id="email" className="mt-1 w-full rounded-md border px-3 py-2" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <label className="mt-4 block text-sm font-medium" htmlFor="password">Password</label>
-        <input id="password" type="password" className="mt-1 w-full rounded-md border px-3 py-2" value={password} onChange={(e) => setPassword(e.target.value)} />
-        {error ? <p role="alert" className="mt-3 text-sm text-red-600">{error}</p> : null}
-        <button className="mt-4 w-full rounded-md bg-gray-900 px-4 py-2 text-white disabled:opacity-60" disabled={pending}>
+        <label className="block text-sm font-medium" htmlFor="email">
+          Email
+        </label>
+        <input
+          id="email"
+          className="mt-1 w-full rounded-md border px-3 py-2"
+          data-testid="emailInput"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <label className="mt-4 block text-sm font-medium" htmlFor="password">
+          Password
+        </label>
+        <input
+          id="password"
+          type="password"
+          className="mt-1 w-full rounded-md border px-3 py-2"
+          data-testid="passwordInput"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        {error ? (
+          <p role="alert" className="mt-3 text-sm text-red-600">
+            {error}
+          </p>
+        ) : null}
+        <button
+          className="mt-4 w-full rounded-md bg-gray-900 px-4 py-2 text-white disabled:opacity-60"
+          data-testid="loginButton"
+          disabled={pending}
+        >
           {pending ? "Signing in..." : "Sign in"}
         </button>
       </form>
