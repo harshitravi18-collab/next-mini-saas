@@ -6,7 +6,7 @@ const nextConfig = {
     unoptimized: true,
   },
 
-  basePath: "/repo-name",
+  basePath: "/next-mini-saas",
 };
 
 export default nextConfig;
