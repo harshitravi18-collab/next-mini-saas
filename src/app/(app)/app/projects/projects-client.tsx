@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useOptimistic, useState, useTransition } from "react";
+import {
+  useEffect,
+  useMemo,
+  useOptimistic,
+  useState,
+  useTransition,
+} from "react";
 import type { Project } from "@/lib/db";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { useToast } from "@/components/Toast";
@@ -40,8 +46,7 @@ export function ProjectsClient({
           return state.map((p) => (p.id === action.item.id ? action.item : p));
         case "delete":
           return state.filter((p) => p.id !== action.id);
-        case "reset":
-          return action.items;
+
         default:
           return state;
       }
@@ -61,8 +66,9 @@ export function ProjectsClient({
     const rawName = String(formData.get("name") ?? "").trim();
     if (!rawName) return toast("Name is required");
 
+    const tempId = `optimistic-${crypto.randomUUID()}`;
     const optimisticItem: Project = {
-      id: `optimistic-${crypto.randomUUID()}`,
+      id: tempId,
       name: rawName,
       createdAt: new Date().toISOString(),
     };
@@ -72,23 +78,31 @@ export function ProjectsClient({
     const res = await createProjectAction(formData);
     if (!res.ok) {
       toast(res.message);
-      applyOptimisticTransition({ type: "delete", id: optimisticItem.id });
+      applyOptimisticTransition({ type: "delete", id: tempId });
       return;
     }
 
-    const next = [res.item, ...serverItems];
-    setServerItems(next);
-    applyOptimisticTransition({ type: "reset", items: next });
+    // remove temp optimistic row
+    applyOptimisticTransition({ type: "delete", id: tempId });
 
+    // add real server row (so UI ids are stable)
+    applyOptimisticTransition({ type: "create", item: res.item });
+
+    // commit server row
+    setServerItems((prev) => [res.item, ...prev]);
+
+    setEditingId(null);
     toast("Project created");
     setCreateKey((k) => k + 1);
+    setEditingId(null);
   }
 
   async function onUpdate(id: string, formData: FormData) {
     const rawName = String(formData.get("name") ?? "").trim();
     if (!rawName) return toast("Name is required");
 
-    const prevItem = serverItems.find((p) => p.id === id);
+    const prevItem =
+      serverItems.find((p) => p.id === id) ?? items.find((p) => p.id === id);
     if (!prevItem) return toast("Project not found");
 
     const optimisticItem: Project = { ...prevItem, name: rawName };
@@ -97,36 +111,39 @@ export function ProjectsClient({
     const res = await updateProjectAction(id, formData);
     if (!res.ok) {
       toast(res.message);
-      applyOptimisticTransition({ type: "update", item: prevItem });
+      applyOptimisticTransition({ type: "update", item: prevItem }); // rollback optimistic update
       return;
     }
 
-    const next = serverItems.map((p) => (p.id === id ? res.item : p));
-    setServerItems(next);
-    applyOptimisticTransition({ type: "reset", items: next });
+    // ✅ commit to serverItems ONLY
+    setServerItems((prev) => prev.map((p) => (p.id === id ? res.item : p)));
 
     toast("Project updated");
     setEditingId(null);
   }
 
   function onDelete(id: string) {
-    const prevItems = serverItems;
+    const prevItem = serverItems.find((p) => p.id === id);
+    if (!prevItem) return;
+
     applyOptimisticTransition({ type: "delete", id });
 
     void deleteProjectAction(id).then((res) => {
       if (!res.deleted) {
         toast("Delete failed. Restoring…");
-        applyOptimisticTransition({ type: "reset", items: prevItems });
+        applyOptimisticTransition({ type: "create", item: prevItem }); // rollback optimistic delete
         return;
       }
 
-      const next = prevItems.filter((p) => p.id !== id);
-      setServerItems(next);
-      applyOptimisticTransition({ type: "reset", items: next });
-
+      // ✅ commit to serverItems ONLY
+      setServerItems((prev) => prev.filter((p) => p.id !== id));
       toast("Project deleted");
     });
   }
+  // tempoerary logging to help debug e2e test issues
+  useEffect(() => {
+    console.log("editingId:", editingId);
+  }, [editingId]);
 
   return (
     <div className="space-y-4">
@@ -135,6 +152,7 @@ export function ProjectsClient({
           {t("projects.search")}
         </label>
         <input
+          data-testid="searchInput"
           id="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -145,7 +163,11 @@ export function ProjectsClient({
 
       <form
         key={createKey}
-        action={onCreate}
+        onSubmit={(e) => {
+          e.preventDefault();
+          const fd = new FormData(e.currentTarget);
+          void onCreate(fd);
+        }}
         className="rounded-lg border bg-white p-4"
       >
         <div className="flex items-end gap-3">
@@ -154,6 +176,7 @@ export function ProjectsClient({
               {t("projects.projectName")}
             </label>
             <input
+              data-testid="nameInput"
               id="name"
               name="name"
               className="mt-1 w-full rounded-md border px-3 py-2"
@@ -163,6 +186,8 @@ export function ProjectsClient({
           <button
             className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white disabled:opacity-60"
             disabled={isPending}
+            data-testid="createButton"
+            type="submit"
           >
             {isPending ? t("projects.working") : t("projects.create")}
           </button>
@@ -184,12 +209,14 @@ export function ProjectsClient({
               <ProjectRow
                 key={p.id}
                 project={p}
-                isPending={isPending}
                 isEditing={editingId === p.id}
-                onEdit={() => setEditingId(p.id)}
+                onEdit={() => {
+                  console.log("EDIT CLICKED", p.id);
+                  setEditingId(p.id);
+                }}
                 onCancel={() => setEditingId(null)}
-                onDelete={() => onDelete(p.id)}
                 onSave={(fd) => onUpdate(p.id, fd)}
+                onDelete={() => onDelete(p.id)}
               />
             ))}
           </ul>

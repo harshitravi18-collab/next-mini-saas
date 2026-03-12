@@ -8,8 +8,8 @@ describe("validateProject", () => {
   });
 
   it("trims and accepts valid names", () => {
-    const res = validateProject({ name: "  Recruiter Demo  " });
+    const res = validateProject({ name: "  Hello World  " });
     expect(res.ok).toBe(true);
-    if (res.ok) expect(res.value.name).toBe("Recruiter Demo");
+    if (res.ok) expect(res.value.name).toBe("Hello World");
   });
 });

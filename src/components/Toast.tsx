@@ -9,20 +9,29 @@ const Ctx = createContext<ToastCtx | null>(null);
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const api = useMemo<ToastCtx>(() => ({
-    toast(message) {
-      const id = crypto.randomUUID();
-      setToasts((t) => [...t, { id, message }]);
-      setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2500);
-    }
-  }), []);
+  const api = useMemo<ToastCtx>(
+    () => ({
+      toast(message) {
+        const id = crypto.randomUUID();
+        setToasts((t) => [...t, { id, message }]);
+        setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2500);
+      },
+    }),
+    []
+  );
 
   return (
     <Ctx.Provider value={api}>
       {children}
-      <div className="fixed bottom-4 right-4 space-y-2">
+      <div
+        className="fixed bottom-4 right-4 space-y-2"
+        data-testid="toastContainer"
+      >
         {toasts.map((t) => (
-          <div key={t.id} className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white shadow">
+          <div
+            key={t.id}
+            className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white shadow"
+          >
             {t.message}
           </div>
         ))}
